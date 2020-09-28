@@ -46,9 +46,10 @@ def main():
 )
 @click.option("--test", is_flag=True)
 @click.option("--interval", type=int, default=5)
+@click.option("--remote", is_flag=True)
 @notify_on_crash
-def nvidia(gpu, locale, test, interval):
-    nv = NvidiaBuyer(gpu, locale, test, interval)
+def nvidia(gpu, locale, test, interval, remote):
+    nv = NvidiaBuyer(gpu, locale, test, interval, remote)
     nv.run_items()
 
 

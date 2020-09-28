@@ -57,7 +57,7 @@ PRODUCT_IDS = json.load(open(PRODUCT_IDS_FILE))
 
 
 class NvidiaBuyer:
-    def __init__(self, gpu, locale="en_us", test=False, interval=5):
+    def __init__(self, gpu, locale="en_us", test=False, interval=5, remote=False):
         self.product_ids = set([])
         self.cli_locale = locale.lower()
         self.locale = self.map_locales()
@@ -69,6 +69,7 @@ class NvidiaBuyer:
         self.started_at = datetime.now()
         self.test = test
         self.interval = interval
+        self.remote = remote
 
         self.gpu_long_name = GPU_DISPLAY_NAMES[gpu]
 
@@ -108,7 +109,7 @@ class NvidiaBuyer:
         try:
             with ThreadPoolExecutor(max_workers=len(self.product_ids)) as executor:
                 product_futures = [
-                    executor.submit(self.buy, product_id)
+                    executor.submit(self.buy, product_id, self.remote)
                     for product_id in self.product_ids
                 ]
                 concurrent.futures.wait(product_futures)
@@ -120,7 +121,7 @@ class NvidiaBuyer:
             self.get_product_ids()
             self.run_items()
 
-    def buy(self, product_id):
+    def buy(self, product_id, remote):
         try:
             log.info(f"Stock Check {product_id} at {self.interval} second intervals.")
             while not self.is_in_stock(product_id):
@@ -135,7 +136,8 @@ class NvidiaBuyer:
                 if cart_success:
                     log.info(f"{self.gpu_long_name} added to cart.")
                     self.enabled = False
-                    webbrowser.open(cart_url)
+                    if not remote:
+                        webbrowser.open(cart_url)
                     self.notification_handler.send_notification(
                         f" {self.gpu_long_name} with product ID: {product_id} in "
                         f"stock: {cart_url}"
@@ -144,13 +146,12 @@ class NvidiaBuyer:
                     self.notification_handler.send_notification(
                         f" ERROR: Attempted to add {self.gpu_long_name} to cart but couldn't, check manually!"
                     )
-                    self.buy(product_id)
         except requests.exceptions.RequestException as e:
             log.warning("Connection error while calling Nvidia API. API may be down.")
             log.info(
                 f"Got an unexpected reply from the server, API may be down, nothing we can do but try again"
             )
-            self.buy(product_id)
+            self.buy(product_id, remote)
 
     def is_in_stock(self, product_id):
         try:
